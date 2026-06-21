@@ -26,13 +26,18 @@ public class AuthService {
 
     private final AuthenticationManager authenticationManager;
     private final UsuarioRepository usuarioRepository;
-    private final EmpleadoRepository empleadoRepository; //
+    private final EmpleadoRepository empleadoRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtProvider jwtProvider;
+    private final DesbloqueoService desbloqueoService;
 
     @Transactional
     public AuthResponse login(LoginRequest loginRequest) {
         try {
+            // 1. Validar que el usuario no está bloqueado
+            desbloqueoService.validarBloqueado(loginRequest.getUsername());
+
+            // 2. Intentar autenticar
             Authentication authentication = authenticationManager.authenticate(
                     new UsernamePasswordAuthenticationToken(
                             loginRequest.getUsername(),
@@ -44,6 +49,9 @@ public class AuthService {
 
             Usuario usuario = usuarioRepository.findByUsuUsername(loginRequest.getUsername())
                     .orElseThrow(() -> new BusinessException("Usuario no encontrado"));
+
+            // 3. Resetear intentos fallidos en login exitoso
+            desbloqueoService.resetearIntentosFallidos(loginRequest.getUsername());
 
             String token = jwtProvider.generateToken(usuario);
             Long expiresIn = jwtProvider.getExpirationTime();
@@ -62,6 +70,12 @@ public class AuthService {
                     .build();
 
         } catch (Exception e) {
+            // 4. Registrar intento fallido
+            try {
+                desbloqueoService.registrarIntentoFallido(loginRequest.getUsername());
+            } catch (Exception ex) {
+                log.warn("No se pudo registrar intento fallido: {}", ex.getMessage());
+            }
             log.error("Error al autenticar usuario: {}", e.getMessage());
             throw new BusinessException("Credenciales inválidas");
         }
