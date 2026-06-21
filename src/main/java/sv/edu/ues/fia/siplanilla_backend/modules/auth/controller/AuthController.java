@@ -1,9 +1,12 @@
 package sv.edu.ues.fia.siplanilla_backend.modules.auth.controller;
 
+import sv.edu.ues.fia.siplanilla_backend.modules.auth.dto.request.ConfirmarDesbloqueoRequest;
 import sv.edu.ues.fia.siplanilla_backend.modules.auth.dto.request.LoginRequest;
 import sv.edu.ues.fia.siplanilla_backend.modules.auth.dto.request.RegisterRequest;
+import sv.edu.ues.fia.siplanilla_backend.modules.auth.dto.request.SolicitarDesbloqueoRequest;
 import sv.edu.ues.fia.siplanilla_backend.modules.auth.dto.response.AuthResponse;
 import sv.edu.ues.fia.siplanilla_backend.modules.auth.service.AuthService;
+import sv.edu.ues.fia.siplanilla_backend.modules.auth.service.DesbloqueoService;
 import sv.edu.ues.fia.siplanilla_backend.util.ApiResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -18,6 +21,7 @@ import org.springframework.web.bind.annotation.*;
 public class AuthController {
 
     private final AuthService authService;
+    private final DesbloqueoService desbloqueoService;
 
     @PostMapping("/login")
     public ResponseEntity<ApiResponse<AuthResponse>> login(@Valid @RequestBody LoginRequest loginRequest) {
@@ -39,6 +43,38 @@ public class AuthController {
                         .success(true)
                         .message("Registro exitoso")
                         .data(authResponse)
+                        .build()
+        );
+    }
+
+    /**
+     * Solicitar desbloqueo de cuenta (envía correo con enlace)
+     */
+    @PostMapping("/solicitar-desbloqueo")
+    public ResponseEntity<ApiResponse<String>> solicitarDesbloqueo(
+            @Valid @RequestBody SolicitarDesbloqueoRequest request) {
+        desbloqueoService.solicitarDesbloqueo(request.getUsername());
+        return ResponseEntity.ok(
+                ApiResponse.<String>builder()
+                        .success(true)
+                        .message("Se ha enviado un correo con el enlace de desbloqueo")
+                        .data("Revisa tu correo electrónico para desbloquear tu cuenta")
+                        .build()
+        );
+    }
+
+    /**
+     * Confirmar desbloqueo con token
+     */
+    @PostMapping("/confirmar-desbloqueo")
+    public ResponseEntity<ApiResponse<String>> confirmarDesbloqueo(
+            @Valid @RequestBody ConfirmarDesbloqueoRequest request) {
+        String mensaje = desbloqueoService.confirmarDesbloqueo(request.getToken());
+        return ResponseEntity.ok(
+                ApiResponse.<String>builder()
+                        .success(true)
+                        .message("Desbloqueo exitoso")
+                        .data(mensaje)
                         .build()
         );
     }
