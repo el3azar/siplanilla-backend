@@ -3,7 +3,6 @@ package sv.edu.ues.fia.siplanilla_backend.modules.planilla.controller;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 import sv.edu.ues.fia.siplanilla_backend.modules.planilla.dto.response.DetallePlanillaResponse;
@@ -15,7 +14,6 @@ import java.util.List;
 @RestController
 @RequestMapping("/planilla/detalle")
 @RequiredArgsConstructor
-@PreAuthorize("hasAnyRole('Administrador','RRHH')")
 @Tag(name = "Planilla - Detalle")
 public class DetallePlanillaController {
 
@@ -32,7 +30,6 @@ public class DetallePlanillaController {
     }
 
     @GetMapping("/mis-boletas")
-    @PreAuthorize("hasRole('Empleado')")
     public ResponseEntity<ApiResponse<List<DetallePlanillaResponse>>> misBoletas(Authentication authentication) {
         List<DetallePlanillaResponse> boletas = service.findByUsernameEmpleado(authentication.getName());
         return ResponseEntity.ok(ApiResponse.ok(boletas));
