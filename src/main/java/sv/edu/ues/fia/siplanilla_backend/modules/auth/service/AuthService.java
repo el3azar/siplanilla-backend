@@ -7,7 +7,6 @@ import sv.edu.ues.fia.siplanilla_backend.modules.empleado.entity.Empleado;
 import sv.edu.ues.fia.siplanilla_backend.modules.empleado.repository.EmpleadoRepository;
 import sv.edu.ues.fia.siplanilla_backend.modules.seguridad.entity.Usuario;
 import sv.edu.ues.fia.siplanilla_backend.modules.seguridad.repository.UsuarioRepository;
-import sv.edu.ues.fia.siplanilla_backend.modules.seguridad.repository.UsuarioRolRepository;
 import sv.edu.ues.fia.siplanilla_backend.exception.BusinessException;
 import sv.edu.ues.fia.siplanilla_backend.security.jwt.JwtProvider;
 import lombok.RequiredArgsConstructor;
@@ -71,8 +70,6 @@ public class AuthService {
                     .id(usuario.getIdUsuario())
                     .username(usuario.getUsuUsername())
                     .email(usuario.getUsuCorreo())
-                    .roles(roles)
-                    .idEmpleado(idEmpleado)
                     .build();
 
             return AuthResponse.builder()
@@ -103,6 +100,13 @@ public class AuthService {
             throw new BusinessException("El email ya está registrado");
         }
 
+
+        Empleado empleado = null;
+        if (registerRequest.getIdEmpleado() != null) {
+            empleado = empleadoRepository.findById(registerRequest.getIdEmpleado())
+                    .orElseThrow(() -> new BusinessException("Empleado no encontrado con id: "
+                            + registerRequest.getIdEmpleado()));
+        }
         Empleado empleado = empleadoRepository.findById(registerRequest.getIdEmpleado())
                 .orElseThrow(() -> new BusinessException("Empleado no encontrado con id: "
                         + registerRequest.getIdEmpleado()));
@@ -143,6 +147,45 @@ public class AuthService {
                 .tokenType("Bearer")
                 .expiresIn(expiresIn)
                 .user(usuarioDto)
+                .build();
+    }
+
+    /**
+     * Verificar el estado de una cuenta sin requerir contraseña.
+     * Útil para que el frontend sepa si debe mostrar formulario de desbloqueo.
+     *
+     * Mapeo de valores:
+     * usu_bloqueado = 0 (BD) → bloqueado: false (JSON)
+     * usu_bloqueado = 1 (BD) → bloqueado: true (JSON)
+     */
+    public AccountStatusDto verificarEstadoCuenta(String username) {
+        var usuario = usuarioRepository.findByUsuUsername(username);
+
+        if (usuario.isEmpty()) {
+            return AccountStatusDto.builder()
+                    .username(username)
+                    .existe(false)
+                    .bloqueado(false)
+                    .activo(false)
+                    .mensaje("Usuario no encontrado")
+                    .build();
+        }
+
+        Usuario u = usuario.get();
+        boolean estaActivo = u.getUsuEstado() != null && u.getUsuEstado();
+        boolean estaBloqueado = u.getUsuBloqueado() != null && u.getUsuBloqueado();
+
+        log.debug("Usuario {} - BD bloqueado: {}, Convertido a: {}",
+                username, u.getUsuBloqueado(), estaBloqueado);
+
+        return AccountStatusDto.builder()
+                .username(username)
+                .existe(true)
+                .bloqueado(estaBloqueado)
+                .activo(estaActivo)
+                .mensaje(estaBloqueado ? "Cuenta bloqueada. Solicita desbloqueo."
+                        : (estaActivo ? "Cuenta activa. Puedes iniciar sesión."
+                           : "Cuenta inactiva."))
                 .build();
     }
 }
