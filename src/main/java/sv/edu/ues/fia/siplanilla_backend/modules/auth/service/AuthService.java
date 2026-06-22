@@ -2,11 +2,13 @@ package sv.edu.ues.fia.siplanilla_backend.modules.auth.service;
 
 import sv.edu.ues.fia.siplanilla_backend.modules.auth.dto.request.LoginRequest;
 import sv.edu.ues.fia.siplanilla_backend.modules.auth.dto.request.RegisterRequest;
+import sv.edu.ues.fia.siplanilla_backend.modules.auth.dto.response.AccountStatusDto;
 import sv.edu.ues.fia.siplanilla_backend.modules.auth.dto.response.AuthResponse;
 import sv.edu.ues.fia.siplanilla_backend.modules.empleado.entity.Empleado;
 import sv.edu.ues.fia.siplanilla_backend.modules.empleado.repository.EmpleadoRepository;
 import sv.edu.ues.fia.siplanilla_backend.modules.seguridad.entity.Usuario;
 import sv.edu.ues.fia.siplanilla_backend.modules.seguridad.repository.UsuarioRepository;
+import sv.edu.ues.fia.siplanilla_backend.modules.seguridad.repository.UsuarioRolRepository;
 import sv.edu.ues.fia.siplanilla_backend.exception.BusinessException;
 import sv.edu.ues.fia.siplanilla_backend.security.jwt.JwtProvider;
 import lombok.RequiredArgsConstructor;
@@ -70,6 +72,8 @@ public class AuthService {
                     .id(usuario.getIdUsuario())
                     .username(usuario.getUsuUsername())
                     .email(usuario.getUsuCorreo())
+                    .roles(roles)
+                    .idEmpleado(idEmpleado)
                     .build();
 
             return AuthResponse.builder()
@@ -100,16 +104,12 @@ public class AuthService {
             throw new BusinessException("El email ya está registrado");
         }
 
-
         Empleado empleado = null;
         if (registerRequest.getIdEmpleado() != null) {
             empleado = empleadoRepository.findById(registerRequest.getIdEmpleado())
                     .orElseThrow(() -> new BusinessException("Empleado no encontrado con id: "
                             + registerRequest.getIdEmpleado()));
         }
-        Empleado empleado = empleadoRepository.findById(registerRequest.getIdEmpleado())
-                .orElseThrow(() -> new BusinessException("Empleado no encontrado con id: "
-                        + registerRequest.getIdEmpleado()));
 
         Usuario usuario = Usuario.builder()
                 .usuUsername(registerRequest.getUsername())
@@ -121,7 +121,6 @@ public class AuthService {
 
         usuario = usuarioRepository.save(usuario);
 
-        // Al registrar no hay roles asignados aún — el admin los asigna después
         List<String> roles = usuarioRolRepository.findByUsuarioWithRol(usuario)
                 .stream()
                 .map(ur -> ur.getRol().getRolNombre())
@@ -150,14 +149,6 @@ public class AuthService {
                 .build();
     }
 
-    /**
-     * Verificar el estado de una cuenta sin requerir contraseña.
-     * Útil para que el frontend sepa si debe mostrar formulario de desbloqueo.
-     *
-     * Mapeo de valores:
-     * usu_bloqueado = 0 (BD) → bloqueado: false (JSON)
-     * usu_bloqueado = 1 (BD) → bloqueado: true (JSON)
-     */
     public AccountStatusDto verificarEstadoCuenta(String username) {
         var usuario = usuarioRepository.findByUsuUsername(username);
 
